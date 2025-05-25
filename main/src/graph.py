@@ -16,7 +16,12 @@ class GraphNX:
 
     def remove_vertex(self, vertex):
         self.graph.remove_node(vertex)
-
+    
+    def remove_edge(self, start, end):
+        start, end = start.strip(), end.strip()
+        if self.graph.has_edge(start, end):
+            self.graph.remove_edge(start, end)
+            
     def get_vertices(self):
         return list(self.graph.nodes)
 
