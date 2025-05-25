@@ -17,6 +17,7 @@ class GraphGUI:
         self.edge_creation_mode = False
         self.vertex_removal_mode = False
         self.edge_removal_mode = False
+        self.vertex_create_mode = False
 
         # Настройка размеров окна
         # Настройка размеров окна
@@ -64,7 +65,8 @@ class GraphGUI:
         buttons = [
             ("Задать кол-во вершин", self.set_vertex_count, "lightblue"),
             ("Сгенерировать ребра", self.generate_graph, "lightblue"),
-            ("Добавить ребро", self.toggle_edge_mode, "lightgreen"),
+            ("Добавить вершину", self.toggle_vertex_mode, "lightgreen"),
+            ("Добавить ребра", self.toggle_edge_mode, "lightgreen"),
             ("Удалить вершину", self.toggle_vertex_removal_mode, "salmon"),
             ("Удалить ребро", self.toggle_edge_removal_mode, "orange"),
             ("Проверить граф", self.check_hamiltonian, "lightyellow"),
@@ -156,28 +158,49 @@ class GraphGUI:
     
     def toggle_edge_mode(self):
         """Переключение режима создания рёбер"""
-        self.edge_creation_mode = not self.edge_creation_mode
-        if self.edge_creation_mode:
-            self.master.config(cursor="cross")
-        else:
-            self.master.config(cursor="")
-            self.selected_vertex = None
-            self.redraw_graph()
+        self.reset_modes()  
+        self.edge_creation_mode = True 
+        self.master.config(cursor="cross")
 
+    def toggle_vertex_mode(self):
+        """Переключение режима создания вершин"""
+        self.reset_modes()  
+        self.vertex_create_mode = True 
+        self.master.config(cursor="plus")
+        messagebox.showinfo("Режим добавления", "Кликайте на холст для добавления вершин.\nДля выхода из режима выберите другой инструмент.")
+
+    def add_vertex_at(self, x, y):
+        """Добавляет вершину в указанные координаты"""
+        # Генерируем уникальное имя вершины
+        used_indices = [int(name[1:]) for name in self.vertex_positions.keys() if name.startswith("V")]
+        new_index = max(used_indices) + 1 if used_indices else 1
+        vertex_name = f"V{new_index}"
+        
+        # Проверяем границы холста
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        
+        x = max(self.vertex_radius, min(x, canvas_width - self.vertex_radius))
+        y = max(self.vertex_radius, min(y, canvas_height - self.vertex_radius))
+        
+        # Добавляем вершину
+        self.vertex_positions[vertex_name] = (x, y)
+        self.graph.add_vertex(vertex_name)
+        self.vertex_count += 1
+        self.redraw_graph()
+    
     def toggle_vertex_removal_mode(self):
         """Переключение режима удаления вершин"""
-        self.vertex_removal_mode = not self.vertex_removal_mode
-        self.edge_creation_mode = False
-        self.edge_removal_mode = False
-        self.update_cursor()
+        self.reset_modes()
+        self.vertex_removal_mode = True
+        self.master.config(cursor="pirate")
 
     def toggle_edge_removal_mode(self):
         """Переключение режима удаления рёбер"""
-        self.edge_removal_mode = not self.edge_removal_mode
-        self.edge_creation_mode = False
-        self.vertex_removal_mode = False
-        self.update_cursor()
-
+        self.reset_modes()
+        self.edge_removal_mode = True
+        self.master.config(cursor="X_cursor")
+        
     def remove_vertex(self, vertex):
         """Удаление вершины из графа"""
         if vertex in self.vertex_positions:
@@ -196,19 +219,19 @@ class GraphGUI:
                 return True
         return False
     
-    def update_cursor(self):
-        """Обновление курсора в зависимости от режима"""
-        if self.edge_creation_mode:
-            self.master.config(cursor="cross")
-        elif self.vertex_removal_mode:
-            self.master.config(cursor="pirate")
-        elif self.edge_removal_mode:
-            self.master.config(cursor="X_cursor")
-        else:
-            self.master.config(cursor="")
+    def reset_modes(self):
+        """Сброс всех режимов и курсора"""
+        self.edge_creation_mode = False
+        self.vertex_removal_mode = False
+        self.edge_removal_mode = False
+        self.vertex_create_mode = False
+        self.selected_vertex = None
+        self.master.config(cursor="")
+        self.redraw_graph()
 
     def set_vertex_count(self):
         """Запрос количества вершин у пользователя"""
+        self.reset_modes()
         count = simpledialog.askinteger("Количество вершин", 
                                       "Введите количество вершин (2-50):", 
                                       parent=self.master, 
@@ -262,6 +285,10 @@ class GraphGUI:
         x = self.canvas.canvasx(event.x)
         y = self.canvas.canvasy(event.y)
         
+        if self.vertex_create_mode:
+            self.add_vertex_at(x, y)
+            return
+        
         # Проверяем, кликнули ли на вершину
         clicked_vertex = None
         for vertex, (vx, vy) in self.vertex_positions.items():
@@ -279,7 +306,6 @@ class GraphGUI:
                 else:
                     self.remove_edge(self.selected_vertex, clicked_vertex)
                     self.selected_vertex = None
-                self.redraw_graph()
                 return
             elif self.edge_creation_mode:
                 if self.selected_vertex is None:
@@ -287,14 +313,14 @@ class GraphGUI:
                 else:
                     self.add_edge(self.selected_vertex, clicked_vertex)
                     self.selected_vertex = None
-                self.redraw_graph()
                 return
             else:
                 self.selected_vertex = clicked_vertex
-                self.redraw_graph()
         else:
+            self.reset_modes()
             self.selected_vertex = None
-            self.redraw_graph()
+
+        self.redraw_graph()    
     
     def on_vertex_drag(self, event):
         """Перемещение вершины при перетаскивании"""
@@ -318,9 +344,9 @@ class GraphGUI:
     
     def add_edge(self, start, end):
         """Добавление ребра в граф"""
-        self.graph.add_edge(start, end)
-    
-    
+        self.graph.add_edge(start, end)  
+        self.redraw_graph()
+
     def redraw_planar_graph(self):
         """Перерисовка графа с учётом планарности"""
         self.canvas.delete("all")
@@ -376,7 +402,6 @@ class GraphGUI:
         # Обновляем область прокрутки
         self.update_scrollregion()
 
-
     def redraw_graph(self):
         """Перерисовка всего графа"""
         self.canvas.delete("all")
@@ -389,17 +414,17 @@ class GraphGUI:
         
         # Рисуем вершины
         for vertex, (x, y) in self.vertex_positions.items():
-            color = "lightblue"
-            outline = "black"
-            width = 1
+            
+            outline = "red" if vertex == self.selected_vertex else "black"
+            width = 2 if vertex == self.selected_vertex else 1
             
             if vertex == self.selected_vertex:
                 outline = "red"
                 width = 2
             
             self.canvas.create_oval(x-self.vertex_radius, y-self.vertex_radius,
-                                   x+self.vertex_radius, y+self.vertex_radius,
-                                   fill=color, outline=outline, width=width)
+                              x+self.vertex_radius, y+self.vertex_radius,
+                              fill="lightblue", outline=outline, width=width)
             self.canvas.create_text(x, y, text=vertex, font=("Arial", 12))
         
         # Обновляем область прокрутки
@@ -423,6 +448,7 @@ class GraphGUI:
     
     def generate_graph(self):
         """Генерация случайного графа"""
+        self.reset_modes()
         if not self.vertex_count:
             messagebox.showwarning("Ошибка", "Сначала задайте количество вершин!")
             return
@@ -455,6 +481,7 @@ class GraphGUI:
     
     def check_hamiltonian(self):
         """Проверка графа на гамильтоновость"""
+        self.reset_modes()
         if not self.graph.get_vertices():
             messagebox.showwarning("Ошибка", "Граф пуст!")
             return
@@ -480,6 +507,7 @@ class GraphGUI:
 
     def clear_graphs(self):
         """Очистка холста, графа и вершин"""
+        self.reset_modes()
         self.clear_canvas()
         self.vertex_count = 0
 
