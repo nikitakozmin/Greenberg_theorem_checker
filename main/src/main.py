@@ -89,29 +89,20 @@ class GraphGUI:
         # Обновление размера фрейма кнопок
         self.button_frame.update_idletasks()
         self.button_canvas.config(scrollregion=self.button_canvas.bbox("all"))
-        self.button_canvas.bind("<Configure>", self.on_canvas_configure)
+        self.button_canvas.bind("<Configure>", self.on_button_canvas_configure)
         
         # Холст для графа
         canvas_container = tk.Frame(main_frame)
         canvas_container.pack(fill=tk.BOTH, expand=True)
         
         self.canvas = tk.Canvas(canvas_container, bg="white")
-        
-        # Вертикальный скроллбар для холста
-        v_scroll = tk.Scrollbar(canvas_container, orient=tk.VERTICAL, command=self.canvas.yview)
-        h_scroll = tk.Scrollbar(canvas_container, orient=tk.HORIZONTAL, command=self.canvas.xview)
-        self.canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
-        
-        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Обработчики событий
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.canvas.bind("<B1-Motion>", self.on_vertex_drag)
-        self.master.bind("<Configure>", self.on_window_resize)
     
-    def on_canvas_configure(self, event):
+    def on_button_canvas_configure(self, event):
         """Обновление области прокрутки для кнопок"""
         # Рассчитываем необходимую ширину для всех кнопок
         required_width = self.button_frame.winfo_reqwidth()
@@ -124,11 +115,6 @@ class GraphGUI:
 
         # Обновляем область прокрутки
         self.button_canvas.config(scrollregion=self.button_canvas.bbox("all"))
-    
-    def on_window_resize(self, event):
-        """Обработчик изменения размера окна"""
-        self.button_canvas.config(scrollregion=self.button_canvas.bbox("all"))
-        self.redraw_graph()
 
     def show_help_window(self, help_text):
         help_win = tk.Toplevel()
@@ -163,10 +149,6 @@ class GraphGUI:
             "на наличие гамильтонова цикла."
         )
         self.show_help_window(help_text)
-
-    def on_canvas_resize(self, event):
-        """Обработчик изменения размера холста"""
-        self.redraw_graph()
     
     def toggle_edge_mode(self):
         """Переключение режима создания рёбер"""
@@ -454,7 +436,7 @@ class GraphGUI:
         max_y = max(y for x, y in self.vertex_positions.values()) + self.vertex_radius
         
         # Добавляем отступы
-        padding = 50
+        padding = -2
         self.canvas.config(scrollregion=(min_x - padding, min_y - padding,
                           max_x + padding, max_y + padding))
     
