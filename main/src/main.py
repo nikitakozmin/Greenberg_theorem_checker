@@ -20,8 +20,7 @@ class GraphGUI:
         self.vertex_create_mode = False
 
         # Настройка размеров окна
-        # Настройка размеров окна
-        self.master.geometry("1000x800")
+        self.master.geometry("1000x600")
         self.master.minsize(600, 500)
         
         self.setup_ui()
@@ -65,12 +64,13 @@ class GraphGUI:
         buttons = [
             ("Задать кол-во вершин", self.set_vertex_count, "lightblue"),
             ("Сгенерировать ребра", self.generate_graph, "lightblue"),
-            ("Добавить вершину", self.toggle_vertex_mode, "lightgreen"),
-            ("Добавить ребра", self.toggle_edge_mode, "lightgreen"),
-            ("Удалить вершину", self.toggle_vertex_removal_mode, "salmon"),
-            ("Удалить ребро", self.toggle_edge_removal_mode, "orange"),
-            ("Проверить граф", self.check_hamiltonian, "lightyellow"),
-            ("Очистить всё", self.clear_graphs, "pink"),
+            ("Проверить граф", self.check_hamiltonian, "lightgoldenrod"),
+            ("Перемещение вершин", self.reset_modes, "white"),
+            ("Добавление вершин", self.toggle_vertex_mode, "lightgreen"),
+            ("Добавление ребер", self.toggle_edge_mode, "lightgreen"),
+            ("Удаление вершин", self.toggle_vertex_removal_mode, "pink"),
+            ("Удаление ребер", self.toggle_edge_removal_mode, "pink"),
+            ("Очистить всё", self.clear_graphs, "salmon"),
             ("Справка", self.show_help, "white")
         ]
         
@@ -113,7 +113,16 @@ class GraphGUI:
     
     def on_canvas_configure(self, event):
         """Обновление области прокрутки для кнопок"""
-        self.button_canvas.itemconfig("button_frame", width=event.width)
+        # Рассчитываем необходимую ширину для всех кнопок
+        required_width = self.button_frame.winfo_reqwidth()
+
+        # Устанавливаем ширину фрейма как максимальную из:
+        # - реальной ширины всех кнопок
+        # - текущей доступной ширины холста
+        new_width = max(required_width, event.width)
+        self.button_canvas.itemconfig("button_frame", width=new_width)
+
+        # Обновляем область прокрутки
         self.button_canvas.config(scrollregion=self.button_canvas.bbox("all"))
     
     def on_window_resize(self, event):
@@ -141,11 +150,14 @@ class GraphGUI:
         help_text = (
             "Инструкция по использованию:\n\n"
             "1. Задайте количество вершин\n"
-            "2. Сгенерируйте ребра или создайте их вручную\n"
-            "3. Используйте инструменты:\n"
-            "   - Добавить ребро: клик на 2 вершины\n"
-            "   - Удалить вершину: клик на вершину\n"
-            "   - Удалить ребро: клик на 2 вершины\n"
+            "2. Сгенерируйте ребра\n"
+            "3. Можете использовать инструменты:\n"
+            "   - Перемещение вершин (по умолчанию): \n"
+            "            перетаскивание курсором\n"
+            "   - Добавление вершин: клик на холст\n"
+            "   - Добавление ребер: клик на 2 вершины\n"
+            "   - Удаление вершин: клик на вершину\n"
+            "   - Удаление ребер: клик на 2 вершины\n"
             "4. Проверьте граф на гамильтоновость\n\n"
             "Теорема Гринберга проверяет планарные графы\n"
             "на наличие гамильтонова цикла."
@@ -167,7 +179,6 @@ class GraphGUI:
         self.reset_modes()  
         self.vertex_create_mode = True 
         self.master.config(cursor="plus")
-        messagebox.showinfo("Режим добавления", "Кликайте на холст для добавления вершин.\nДля выхода из режима выберите другой инструмент.")
 
     def add_vertex_at(self, x, y):
         """Добавляет вершину в указанные координаты"""
@@ -278,15 +289,15 @@ class GraphGUI:
     
     def on_canvas_click(self, event):
         """Обработчик клика на холсте"""
-        if not self.vertex_positions:
-            return
-        
         # Координаты с учётом прокрутки
         x = self.canvas.canvasx(event.x)
         y = self.canvas.canvasy(event.y)
         
         if self.vertex_create_mode:
             self.add_vertex_at(x, y)
+            return
+        
+        if not self.vertex_positions:
             return
         
         # Проверяем, кликнули ли на вершину
@@ -306,6 +317,7 @@ class GraphGUI:
                 else:
                     self.remove_edge(self.selected_vertex, clicked_vertex)
                     self.selected_vertex = None
+                self.redraw_graph()
                 return
             elif self.edge_creation_mode:
                 if self.selected_vertex is None:
@@ -313,11 +325,11 @@ class GraphGUI:
                 else:
                     self.add_edge(self.selected_vertex, clicked_vertex)
                     self.selected_vertex = None
+                self.redraw_graph()
                 return
             else:
                 self.selected_vertex = clicked_vertex
         else:
-            self.reset_modes()
             self.selected_vertex = None
 
         self.redraw_graph()    
@@ -454,9 +466,9 @@ class GraphGUI:
             return
             
         density = simpledialog.askfloat("Плотность графа", 
-                                      "Введите плотность графа (0.1-1.0):",
+                                      "Введите плотность графа (0.0-1.0):",
                                       parent=self.master,
-                                      minvalue=0.1,
+                                      minvalue=0,
                                       maxvalue=1.0)
         if density is None:
             return
