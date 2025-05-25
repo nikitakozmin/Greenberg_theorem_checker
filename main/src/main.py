@@ -15,56 +15,141 @@ class GraphGUI:
         self.vertex_positions = {}
         self.selected_vertex = None
         self.edge_creation_mode = False
-        
+        self.vertex_removal_mode = False
+        self.edge_removal_mode = False
+
         # Настройка размеров окна
-        self.master.geometry("900x700")
-        self.master.minsize(800, 600)
+        # Настройка размеров окна
+        self.master.geometry("1000x800")
+        self.master.minsize(600, 500)
         
         self.setup_ui()
     
     def setup_ui(self):
-        """Настройка пользовательского интерфейса"""
-        # Главный фрейм с панелью управления и холстом
+        """Настройка пользовательского интерфейса с адаптивной панелью"""
+        # Главный фрейм
         main_frame = tk.Frame(self.master)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Панель управления
-        control_frame = tk.Frame(main_frame, bg="lightgray", padx=5, pady=5)
+        # Панель управления с увеличенной высотой и возможностью прокрутки
+        control_frame = tk.Frame(main_frame, bg="lightgray", padx=5, pady=8, height=80)
         control_frame.pack(side=tk.TOP, fill=tk.X)
+        control_frame.pack_propagate(False)  # Фиксируем высоту
+        
+        # Фрейм для кнопок с прокруткой
+        button_container = tk.Frame(control_frame)
+        button_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Горизонтальный скроллбар для кнопок
+        scrollbar = tk.Scrollbar(button_container, orient=tk.HORIZONTAL)
+        scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Холст для кнопок
+        self.button_canvas = tk.Canvas(button_container, 
+                                     height=60, 
+                                     xscrollcommand=scrollbar.set,
+                                     bg="lightgray",
+                                     highlightthickness=0)
+        self.button_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.button_canvas.xview)
+        
+        # Фрейм для кнопок внутри холста
+        self.button_frame = tk.Frame(self.button_canvas, bg="lightgray")
+        self.button_canvas.create_window((0,0), 
+                                       window=self.button_frame, 
+                                       anchor="nw",
+                                       tags="button_frame")
         
         # Кнопки управления
-        tk.Button(control_frame, text="Задать количество вершин", 
-                 command=self.set_vertex_count).pack(side=tk.LEFT, padx=5)
-        tk.Button(control_frame, text="Сгенерировать граф", 
-                 command=self.generate_graph).pack(side=tk.LEFT, padx=5)
-        tk.Button(control_frame, text="Режим создания рёбер", 
-                 command=self.toggle_edge_mode, bg="lightgreen").pack(side=tk.LEFT, padx=5)
-        tk.Button(control_frame, text="Проверить на гамильтоновость", 
-                 command=self.check_hamiltonian).pack(side=tk.LEFT, padx=5)
-        tk.Button(control_frame, text="Очистить", 
-                 command=self.clear_canvas).pack(side=tk.LEFT, padx=5)
+        buttons = [
+            ("Задать кол-во вершин", self.set_vertex_count, "lightblue"),
+            ("Сгенерировать ребра", self.generate_graph, "lightblue"),
+            ("Добавить ребро", self.toggle_edge_mode, "lightgreen"),
+            ("Удалить вершину", self.toggle_vertex_removal_mode, "salmon"),
+            ("Удалить ребро", self.toggle_edge_removal_mode, "orange"),
+            ("Проверить граф", self.check_hamiltonian, "lightyellow"),
+            ("Очистить всё", self.clear_graphs, "pink"),
+            ("Справка", self.show_help, "white")
+        ]
         
-        # Холст для рисования графа с прокруткой
-        canvas_frame = tk.Frame(main_frame)
-        canvas_frame.pack(fill=tk.BOTH, expand=True)
+        for text, command, color in buttons:
+            btn = tk.Button(self.button_frame, 
+                          text=text, 
+                          command=command,
+                          bg=color,
+                          padx=10,
+                          pady=5,
+                          font=('Arial', 10),
+                          relief=tk.RAISED,
+                          bd=2)
+            btn.pack(side=tk.LEFT, padx=5, pady=5)
         
-        self.canvas = tk.Canvas(canvas_frame, width=800, height=600, bg="white", 
-                               scrollregion=(0, 0, 1200, 1200))
+        # Обновление размера фрейма кнопок
+        self.button_frame.update_idletasks()
+        self.button_canvas.config(scrollregion=self.button_canvas.bbox("all"))
+        self.button_canvas.bind("<Configure>", self.on_canvas_configure)
         
-        # Добавляем прокрутку
-        h_scroll = tk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.canvas.xview)
-        v_scroll = tk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.canvas.yview)
-        self.canvas.configure(xscrollcommand=h_scroll.set, yscrollcommand=v_scroll.set)
+        # Холст для графа
+        canvas_container = tk.Frame(main_frame)
+        canvas_container.pack(fill=tk.BOTH, expand=True)
         
-        h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas = tk.Canvas(canvas_container, bg="white")
+        
+        # Вертикальный скроллбар для холста
+        v_scroll = tk.Scrollbar(canvas_container, orient=tk.VERTICAL, command=self.canvas.yview)
+        h_scroll = tk.Scrollbar(canvas_container, orient=tk.HORIZONTAL, command=self.canvas.xview)
+        self.canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        
         v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Обработчики событий
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.canvas.bind("<B1-Motion>", self.on_vertex_drag)
-        self.canvas.bind("<Configure>", self.on_canvas_resize)
+        self.master.bind("<Configure>", self.on_window_resize)
     
+    def on_canvas_configure(self, event):
+        """Обновление области прокрутки для кнопок"""
+        self.button_canvas.itemconfig("button_frame", width=event.width)
+        self.button_canvas.config(scrollregion=self.button_canvas.bbox("all"))
+    
+    def on_window_resize(self, event):
+        """Обработчик изменения размера окна"""
+        self.button_canvas.config(scrollregion=self.button_canvas.bbox("all"))
+        self.redraw_graph()
+
+    def show_help_window(self, help_text):
+        help_win = tk.Toplevel()
+        help_win.title("Справка")
+        help_win.geometry("400x400") 
+
+        scrollbar = tk.Scrollbar(help_win)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        text = tk.Text(help_win, wrap=tk.WORD, yscrollcommand=scrollbar.set)
+        text.pack(expand=True, fill=tk.BOTH)
+        text.insert(tk.END, help_text)
+        text.config(state=tk.DISABLED)
+
+        scrollbar.config(command=text.yview)
+
+    def show_help(self):
+        """Показать справку"""
+        help_text = (
+            "Инструкция по использованию:\n\n"
+            "1. Задайте количество вершин\n"
+            "2. Сгенерируйте ребра или создайте их вручную\n"
+            "3. Используйте инструменты:\n"
+            "   - Добавить ребро: клик на 2 вершины\n"
+            "   - Удалить вершину: клик на вершину\n"
+            "   - Удалить ребро: клик на 2 вершины\n"
+            "4. Проверьте граф на гамильтоновость\n\n"
+            "Теорема Гринберга проверяет планарные графы\n"
+            "на наличие гамильтонова цикла."
+        )
+        self.show_help_window(help_text)
+
     def on_canvas_resize(self, event):
         """Обработчик изменения размера холста"""
         self.redraw_graph()
@@ -78,7 +163,50 @@ class GraphGUI:
             self.master.config(cursor="")
             self.selected_vertex = None
             self.redraw_graph()
+
+    def toggle_vertex_removal_mode(self):
+        """Переключение режима удаления вершин"""
+        self.vertex_removal_mode = not self.vertex_removal_mode
+        self.edge_creation_mode = False
+        self.edge_removal_mode = False
+        self.update_cursor()
+
+    def toggle_edge_removal_mode(self):
+        """Переключение режима удаления рёбер"""
+        self.edge_removal_mode = not self.edge_removal_mode
+        self.edge_creation_mode = False
+        self.vertex_removal_mode = False
+        self.update_cursor()
+
+    def remove_vertex(self, vertex):
+        """Удаление вершины из графа"""
+        if vertex in self.vertex_positions:
+            self.graph.remove_vertex(vertex)
+            del self.vertex_positions[vertex]
+            self.redraw_graph()
+            return True
+        return False
     
+    def remove_edge(self, u, v):
+        """Удаление ребра между вершинами"""
+        if u in self.vertex_positions and v in self.vertex_positions:
+            if self.graph.has_edge(u, v):
+                self.graph.remove_edge(u, v)
+                self.redraw_graph()
+                return True
+        return False
+    
+    def update_cursor(self):
+        """Обновление курсора в зависимости от режима"""
+        if self.edge_creation_mode:
+            self.master.config(cursor="cross")
+        elif self.vertex_removal_mode:
+            self.master.config(cursor="pirate")
+        elif self.edge_removal_mode:
+            self.master.config(cursor="X_cursor")
+        else:
+            self.master.config(cursor="")
+
     def set_vertex_count(self):
         """Запрос количества вершин у пользователя"""
         count = simpledialog.askinteger("Количество вершин", 
@@ -142,24 +270,29 @@ class GraphGUI:
                 break
         
         if clicked_vertex:
-            if self.edge_creation_mode:
+            if self.vertex_removal_mode:
+                self.remove_vertex(clicked_vertex)
+                return
+            elif self.edge_removal_mode:
                 if self.selected_vertex is None:
-                    # Выбираем первую вершину
                     self.selected_vertex = clicked_vertex
-                    self.redraw_graph()
                 else:
-                    # Создаём ребро между выбранными вершинами
-                    if self.selected_vertex != clicked_vertex:
-                        self.add_edge(self.selected_vertex, clicked_vertex)
-                    # Снимаем выделение
+                    self.remove_edge(self.selected_vertex, clicked_vertex)
                     self.selected_vertex = None
-                    self.redraw_graph()
+                self.redraw_graph()
+                return
+            elif self.edge_creation_mode:
+                if self.selected_vertex is None:
+                    self.selected_vertex = clicked_vertex
+                else:
+                    self.add_edge(self.selected_vertex, clicked_vertex)
+                    self.selected_vertex = None
+                self.redraw_graph()
+                return
             else:
-                # Просто выделяем вершину для перемещения
                 self.selected_vertex = clicked_vertex
                 self.redraw_graph()
-        elif not self.edge_creation_mode and self.selected_vertex:
-            # Снимаем выделение, если кликнули не на вершину
+        else:
             self.selected_vertex = None
             self.redraw_graph()
     
@@ -192,6 +325,15 @@ class GraphGUI:
         """Перерисовка графа с учётом планарности"""
         self.canvas.delete("all")
 
+        # Добавляем подпись сверху
+        self.canvas.create_text(
+            self.canvas.winfo_width() // 2, 20,  
+            text="Плоский граф текущего графа. Чтобы вернуться, нажмите на экран.",
+            fill="black",
+            font=("Arial", 12, "bold"),
+            anchor="n",  # привязка к верхнему центру текста
+            width=self.canvas.winfo_width() - 40  # чтобы текст переносился и не выходил за края
+        )
         pos, is_planar = self.graph.layout_planar_or_default()
 
         # Масштабируем координаты под размеры холста
@@ -320,7 +462,7 @@ class GraphGUI:
         result = self.graph.is_hamiltonian()
         
         if result is True:
-            messagebox.showinfo("Результат", "Граф гамильтонов (по теореме Гринберга)")
+            messagebox.showinfo("Результат", "Граф может быть гамильтонов (по теореме Гринберга)")
             self.redraw_planar_graph()
         elif result is False:
             messagebox.showinfo("Результат", "Граф не гамильтонов (по теореме Гринберга)")
@@ -335,6 +477,12 @@ class GraphGUI:
         self.selected_vertex = None
         self.edge_creation_mode = False
         self.master.config(cursor="")
+
+    def clear_graphs(self):
+        """Очистка холста, графа и вершин"""
+        self.clear_canvas()
+        self.vertex_count = 0
+
 
 def main():
     root = tk.Tk()
