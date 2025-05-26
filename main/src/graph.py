@@ -115,11 +115,9 @@ class GraphNX:
             return False
         
         faces = self.get_faces()
-        if len(faces) < 1:
-            return False  
         
         V, E, F = len(self.graph.nodes), len(self.graph.edges), len(faces)
-        if V - E + F != 2: # проверка формулы эйлера
+        if V - E + F != 2:
             return False
 
         try:
@@ -142,7 +140,7 @@ class GraphNX:
                     if hull_count > max_hull_count:
                         max_hull_count = hull_count
                         external_face = face
-                        
+
         except Exception as e:
             print(f"Ошибка при определении внешней грани: {e}")
             external_face = max(faces, key=len)
