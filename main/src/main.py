@@ -63,7 +63,7 @@ class GraphGUI:
         # Кнопки управления
         buttons = [
             ("Задать кол-во вершин", self.set_vertex_count, "lightblue"),
-            ("Сгенерировать ребра", self.generate_graph, "lightblue"),
+            ("Сгенерировать ребра", self.graph_edge_generation, "lightblue"),
             ("Проверить граф", self.check_hamiltonian, "lightgoldenrod"),
             ("Перемещение вершин", self.reset_modes, "white"),
             ("Добавление вершин", self.toggle_vertex_mode, "lightgreen"),
@@ -212,6 +212,13 @@ class GraphGUI:
                 return True
         return False
     
+    def clear_edges(self):
+        """Удаление всех ребер"""
+        for u, v, i in self.graph.get_edges():
+            for i in range(i):
+                self.remove_edge(u, v)
+        self.redraw_graph()
+    
     def reset_modes(self):
         """Сброс всех режимов и курсора"""
         self.edge_creation_mode = False
@@ -233,9 +240,9 @@ class GraphGUI:
         if count:
             self.vertex_count = count
             self.clear_canvas()
-            self.draw_vertices()
+            self.circular_draw_vertices()
     
-    def draw_vertices(self):
+    def circular_draw_vertices(self):
         """Отрисовка вершин на холсте с учётом границ"""
         if not self.vertex_count:
             return
@@ -326,8 +333,8 @@ class GraphGUI:
         y = self.canvas.canvasy(event.y)
         
         # Убедимся, что вершина не выходит за границы
-        canvas_width = self.canvas.winfo_width() - self.vertex_radius
-        canvas_height = self.canvas.winfo_height() - self.vertex_radius
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
         
         x = max(self.vertex_radius, min(x, canvas_width - self.vertex_radius))
         y = max(self.vertex_radius, min(y, canvas_height - self.vertex_radius))
@@ -345,15 +352,6 @@ class GraphGUI:
         """Перерисовка графа с учётом планарности"""
         self.canvas.delete("all")
 
-        # Добавляем подпись сверху
-        self.canvas.create_text(
-            self.canvas.winfo_width() // 2, 20,  
-            text="Плоский граф текущего графа. Чтобы вернуться, нажмите на экран.",
-            fill="black",
-            font=("Arial", 12, "bold"),
-            anchor="n",  # привязка к верхнему центру текста
-            width=self.canvas.winfo_width() - 40  # чтобы текст переносился и не выходил за края
-        )
         pos, is_planar = self.graph.layout_planar_or_default()
 
         # Масштабируем координаты под размеры холста
@@ -392,9 +390,16 @@ class GraphGUI:
             r = self.vertex_radius
             self.canvas.create_oval(x - r, y - r, x + r, y + r, fill=color, outline=outline, width=width)
             self.canvas.create_text(x, y, text=vertex, font=("Arial", 12))
-
-        # Обновляем область прокрутки
-        self.update_scrollregion()
+            
+        # Добавляем подпись сверху
+        self.canvas.create_text(
+            self.canvas.winfo_width() // 2, 20,  
+            text="Плоский граф текущего графа. Чтобы вернуться, нажмите на экран.",
+            fill="red",
+            font=("Arial", 12, "bold"),
+            anchor="n",  # привязка к верхнему центру текста
+            width=self.canvas.winfo_width() - 40  # чтобы текст переносился и не выходил за края
+        )
 
     def redraw_graph(self):
         """Перерисовка всего графа"""
@@ -421,26 +426,7 @@ class GraphGUI:
                               fill="lightblue", outline=outline, width=width)
             self.canvas.create_text(x, y, text=vertex, font=("Arial", 12))
         
-        # Обновляем область прокрутки
-        self.update_scrollregion()
-    
-    def update_scrollregion(self):
-        """Обновление области прокрутки холста"""
-        if not self.vertex_positions:
-            return
-        
-        # Находим границы всех элементов
-        min_x = min(x for x, y in self.vertex_positions.values()) - self.vertex_radius
-        min_y = min(y for x, y in self.vertex_positions.values()) - self.vertex_radius
-        max_x = max(x for x, y in self.vertex_positions.values()) + self.vertex_radius
-        max_y = max(y for x, y in self.vertex_positions.values()) + self.vertex_radius
-        
-        # Добавляем отступы
-        padding = -2
-        self.canvas.config(scrollregion=(min_x - padding, min_y - padding,
-                          max_x + padding, max_y + padding))
-    
-    def generate_graph(self):
+    def graph_edge_generation(self):
         """Генерация случайного графа"""
         self.reset_modes()
         if not self.vertex_count:
@@ -454,9 +440,8 @@ class GraphGUI:
                                       maxvalue=1.0)
         if density is None:
             return
-            
-        self.clear_canvas()
-        self.draw_vertices()
+        
+        self.clear_edges()
         
         # Генерация рёбер
         vertices = list(self.vertex_positions.keys())
