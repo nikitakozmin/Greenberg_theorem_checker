@@ -1,7 +1,7 @@
 import networkx as nx
-import planarity
 from collections import defaultdict
-from networkx import PlanarEmbedding
+from scipy.spatial import ConvexHull
+import math
 
 class GraphNX:
     def __init__(self):
@@ -60,51 +60,47 @@ class GraphNX:
         return False
     
     def get_faces(self):
-        """Возвращает список граней планарного графа."""
-        if not hasattr(self, '_faces_cache'):
-            if not self.is_planar():
-                self._faces_cache = []
-                return []
+        if not self.is_planar():
+            return []
 
-            # Получаем планарное вложение
-            is_planar, embedding = nx.check_planarity(self.graph)
-            if not is_planar:
-                self._faces_cache = []
-                return []
+        is_planar, embedding = nx.check_planarity(self.graph)
+        if not is_planar:
+            return []
 
-            # Создаем словарь для хранения порядка соседей
-            neighbor_order = defaultdict(dict)
-            for u in embedding:
-                neighbors = list(embedding[u])
-                for i, v in enumerate(neighbors):
-                    next_v = neighbors[(i + 1) % len(neighbors)]
-                    neighbor_order[u][v] = next_v
+        # Получаем координаты вершин 
+        pos = nx.planar_layout(self.graph)
 
-            # Находим все грани
-            faces = []
-            visited_edges = set()
+        neighbor_order = {}
+        for u in embedding:
+            # Сортируем соседей по углу относительно вершины u
+            neighbors = sorted(
+                embedding[u],
+                key=lambda v: math.atan2(pos[v][1] - pos[u][1], pos[v][0] - pos[u][0])
+            )
+            neighbor_order[u] = {
+                v: neighbors[(i + 1) % len(neighbors)]
+                for i, v in enumerate(neighbors)
+            }
 
-            for u in neighbor_order:
-                for v in neighbor_order[u]:
-                    if (u, v) not in visited_edges:
-                        face = []
-                        current_u, current_v = u, v
-                        while True:
-                            face.append(current_u)
-                            visited_edges.add((current_u, current_v))
-                            
-                            # Получаем следующую вершину в порядке обхода
-                            next_v = neighbor_order[current_v][current_u]
-                            current_u, current_v = current_v, next_v
-                            
-                            if (current_u, current_v) == (u, v):
-                                break
-                        
-                        faces.append(face)
+        # Дальше обход граней
+        faces = []
+        visited_edges = set()
 
-            self._faces_cache = faces
+        for u in neighbor_order:
+            for v in neighbor_order[u]:
+                if (u, v) not in visited_edges:
+                    face = []
+                    current_u, current_v = u, v
+                    while True:
+                        face.append(current_u)
+                        visited_edges.add((current_u, current_v))
+                        next_v = neighbor_order[current_v][current_u]
+                        current_u, current_v = current_v, next_v
+                        if (current_u, current_v) == (u, v):
+                            break
+                    faces.append(face)
 
-        return self._faces_cache
+        return faces
 
     def greenberg_condition(self):
         """Проверяет условие Гринберга для планарного графа."""
@@ -115,7 +111,7 @@ class GraphNX:
             return False
         
         faces = self.get_faces()
-        
+        print(faces, len(faces))
         V, E, F = len(self.graph.nodes), len(self.graph.edges), len(faces)
         if V - E + F != 2:
             return False
@@ -126,7 +122,6 @@ class GraphNX:
             if len(pos) < 3:
                 external_face = max(faces, key=len)
             else:
-                from scipy.spatial import ConvexHull
                 points = list(pos.values())
                 hull = ConvexHull(points)
                 hull_vertices = set(hull.vertices)
