@@ -87,14 +87,14 @@ class GraphNX:
 
         return faces
 
-    def greenberg_condition(self):
+    def greenberg_condition(self, mutable_params):
         # проверка на планарность
         if not self.is_planar():
             return 'nonplanar'
         
-        # проверка на связность
+        # проверка на двусвязность
         if self.graph.number_of_nodes() < 3 or not self.is_biconnected():
-            return 'nonconnected'
+            return 'nonbiconnected'
         
         # находим все грани
         faces = self.get_faces()
@@ -144,17 +144,10 @@ class GraphNX:
                     if all_orders.issubset(orders_in_f_prime.union(orders_in_f_double_prime)):
                         found = True
         if found:
-            print("Найдено подходящее разбиение:")
-            print("f'_k:", f_prime)
-            print("f''_k:", f_double_prime)
-        else:
-            print("Подходящее разбиениене не найдено")
+            mutable_params.append(f_prime)
+            mutable_params.append(f_double_prime)
 
         return found
-
-    def is_hamiltonian(self):
-        res = self.greenberg_condition()
-        return str(res)
 
     def layout_planar_or_default(self):
         is_planar, embedding = nx.check_planarity(self.graph)
