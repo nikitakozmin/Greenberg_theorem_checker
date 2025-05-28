@@ -37,16 +37,8 @@ class GraphNX:
     def is_planar(self):
         return nx.check_planarity(self.graph)[0]
 
-    def is_connected(self):
-        if len(self.graph) == 0:
-            return False  
-        return nx.is_connected(self.graph)
-
     def is_biconnected(self):
         return nx.is_biconnected(self.graph)
-
-    def has_bridges(self):
-        return len(list(nx.bridges(self.graph))) > 0
 
     def has_separating_cycles(self):
         for node in self.graph.nodes:
@@ -100,11 +92,7 @@ class GraphNX:
             return 'nonplanar'
         
         # проверка на связность
-        if self.graph.number_of_nodes() < 3 or not self.is_connected():
-            return False
-        
-        # проверка на наличие мостов
-        if self.has_bridges():
+        if self.graph.number_of_nodes() < 3 or not self.is_biconnected():
             return False
         
         # находим все грани
@@ -132,13 +120,13 @@ class GraphNX:
 
         # рекурсивная функция для перебора возможных f_k'
         def backtrack(pos, current_sum, selected):
+            if pos >= n or current_sum > target:
+                return None
             if current_sum == target:
                 # проверяем, что для каждого k хотя бы одно из f_k' или f_k'' не ноль
                 valid = all(selected.get(k, 0) > 0 or (f_k[k] - selected.get(k, 0)) > 0 for k in f_k)
                 if valid:
                     return selected
-                return None
-            if pos >= n or current_sum > target:
                 return None
             
             k, count = items[pos]
