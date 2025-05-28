@@ -93,7 +93,7 @@ class GraphNX:
         
         # проверка на связность
         if self.graph.number_of_nodes() < 3 or not self.is_biconnected():
-            return False
+            return 'nonconnected'
         
         # находим все грани
         faces = self.get_faces()
@@ -109,48 +109,47 @@ class GraphNX:
 
         # вычисляем общую сумму S = sum f_k * (k - 2)
         total_sum = sum(f_k.get(k, 0) * (k - 2) for k in f_k)
-        if total_sum == 0:
+        if total_sum == 0 or total_sum % 2 != 0:
+            print(total_sum)
             return False
 
         target = total_sum // 2
 
         # преобразуем f_k в список пар (k, count) для удобства перебора
-        items = list(f_k.items())
-        n = len(items)
 
-        # рекурсивная функция для перебора возможных f_k'
-        def backtrack(pos, current_sum, selected):
-            if pos >= n or current_sum > target:
-                return None
-            if current_sum == target:
-                # проверяем, что для каждого k хотя бы одно из f_k' или f_k'' не ноль
-                valid = all(selected.get(k, 0) > 0 or (f_k[k] - selected.get(k, 0)) > 0 for k in f_k)
-                if valid:
-                    return selected
-                return None
-            
-            k, count = items[pos]
-            max_take = min(count, (target - current_sum) // (k - 2)) if (k - 2) != 0 else 0
+        n = len(faces)
+        found = False
 
-            # пробуем взять от 0 до max_take граней порядка k
-            for take in range(max_take, -1, -1):
-                if take == 0:
-                    result = backtrack(pos + 1, current_sum, selected)
-                else:
-                    new_selected = selected.copy()
-                    new_selected[k] = take
-                    result = backtrack(pos + 1, current_sum + take * (k - 2), new_selected)
-                if result is not None:
-                    return result
-            return None
+        # перебираем все возможные размеры подмножеств (от 1 до n-1)
+        for r in range(1, n):
+            # перебираем все комбинации из r граней
+            for subset_indices in combinations(range(n), r):
+                # вычисляем сумму (k-2) для выбранных граней
+                current_sum = sum(len(faces[i]) - 2 for i in subset_indices)
+                
+                # если сумма совпала с целевой — проверяем условие
+                if current_sum == target:
+                    # получаем f'_k и f''_k
+                    f_prime = [faces[i] for i in subset_indices]
+                    f_double_prime = [faces[i] for i in range(n) if i not in subset_indices]
 
-        # перебор
-        solution = backtrack(0, 0, {})
+                    # проверяем, что в обоих группах есть хотя бы одна грань каждого порядка
+                    # (если в исходном графе были грани порядка k, они должны быть в f'_k или f''_k)
+                    orders_in_f_prime = {len(face) for face in f_prime}
+                    orders_in_f_double_prime = {len(face) for face in f_double_prime}
+                    all_orders = {len(face) for face in faces}
 
-        if solution is not None:
-            return True
+                    # если все orders покрыты хотя бы в одном из множеств — условие выполнено
+                    if all_orders.issubset(orders_in_f_prime.union(orders_in_f_double_prime)):
+                        found = True
+        if found:
+            print("Найдено подходящее разбиение:")
+            print("f'_k:", f_prime)
+            print("f''_k:", f_double_prime)
         else:
-            return False
+            print("Подходящее разбиениене найдено")
+
+        return found
 
     def is_hamiltonian(self):
         res = self.greenberg_condition()
