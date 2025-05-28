@@ -469,7 +469,7 @@ class GraphGUI:
         result = self.graph.greenberg_condition(mutable_params)
         
         if result == True:
-            messagebox.showinfo("Результат", f"Граф может быть гамильтонов (по теореме Гринберга)\nf'_k: {mutable_params[0]}\nf''k: {mutable_params[1]}")
+            messagebox.showinfo("Результат", f"Граф может быть гамильтонов (по теореме Гринберга)\nf'_k: {mutable_params[0]}\nf''_k: {mutable_params[1]}")
             self.redraw_planar_graph()
         elif result == False:
             messagebox.showinfo("Результат", "Граф не гамильтонов (по теореме Гринберга)")
