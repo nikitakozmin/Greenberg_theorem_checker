@@ -464,16 +464,21 @@ class GraphGUI:
         if not self.graph.get_vertices():
             messagebox.showwarning("Ошибка", "Граф пуст!")
             return
-            
-        result = self.graph.is_hamiltonian()
         
-        if result is True:
-            messagebox.showinfo("Результат", "Граф может быть гамильтонов (по теореме Гринберга)")
+        mutable_params = []
+        result = self.graph.greenberg_condition(mutable_params)
+        
+        if result == True:
+            messagebox.showinfo("Результат", f"Граф может быть гамильтонов (по теореме Гринберга)\nf'_k: {mutable_params[0]}\nf''k: {mutable_params[1]}")
             self.redraw_planar_graph()
-        elif result is False:
+        elif result == False:
             messagebox.showinfo("Результат", "Граф не гамильтонов (по теореме Гринберга)")
-        else:
+        elif result == 'nonplanar':
             messagebox.showinfo("Результат", "Граф непланарный, теорема Гринберга не применима, гамильтоновость неизвестна")
+        elif result == 'nonbiconnected':
+            messagebox.showinfo("Результат", "Граф не двусвязный, теорема Гринберга не применима, гамильтоновости нет")
+        else:
+            messagebox.showwarning("Ошибка", "Неожиданный результат")
 
     def clear_canvas(self):
         """Очистка холста и графа"""

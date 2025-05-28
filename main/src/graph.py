@@ -1,4 +1,5 @@
 import networkx as nx
+from itertools import combinations
 
 class GraphNX:
     def __init__(self):
@@ -37,14 +38,8 @@ class GraphNX:
     def is_planar(self):
         return nx.check_planarity(self.graph)[0]
 
-    def is_connected(self):
-        return nx.is_connected(self.graph)
-
     def is_biconnected(self):
         return nx.is_biconnected(self.graph)
-
-    def has_bridges(self):
-        return len(list(nx.bridges(self.graph))) > 0
 
     def has_separating_cycles(self):
         for node in self.graph.nodes:
@@ -54,48 +49,107 @@ class GraphNX:
                     return True
         return False
 
-    def greenberg_condition(self):
+    def get_faces(self):
+        _, embedding = nx.check_planarity(self.graph)
+
+        # получаем координаты вершин 
+        pos = nx.planar_layout(self.graph)
+        import math
+        neighbor_order = {}
+        for u in embedding:
+            # сортируем соседей по углу относительно вершины u
+            neighbors = sorted(
+                embedding[u],
+                key=lambda v: math.atan2(pos[v][1] - pos[u][1], pos[v][0] - pos[u][0])
+            )
+            neighbor_order[u] = {
+                v: neighbors[(i + 1) % len(neighbors)]
+                for i, v in enumerate(neighbors)
+            }
+
+        # обход граней
+        faces = []
+        visited_edges = set()
+
+        for u in neighbor_order:
+            for v in neighbor_order[u]:
+                if (u, v) not in visited_edges:
+                    face = []
+                    current_u, current_v = u, v
+                    while True:
+                        face.append(current_u)
+                        visited_edges.add((current_u, current_v))
+                        next_v = neighbor_order[current_v][current_u]
+                        current_u, current_v = current_v, next_v
+                        if (current_u, current_v) == (u, v):
+                            break
+                    faces.append(face)
+
+        return faces
+
+    def greenberg_condition(self, mutable_params):
+        # проверка на планарность
         if not self.is_planar():
-            return 'nonplanar'  # возвращаем явно, что граф непланарный
+            return 'nonplanar'
+        
+        # проверка на двусвязность
+        if self.graph.number_of_nodes() < 3 or not self.is_biconnected():
+            return 'nonbiconnected'
+        
+        # находим все грани
+        faces = self.get_faces()
+        if not faces:
+            return False
+       
+        # считаем f_k (количество граней порядка k)
+        f_k = {}
+        for face in faces:
+            k = len(face)
+            if k >= 3:  # учитываем только грани с k >= 3
+                f_k[k] = f_k.get(k, 0) + 1
 
-        n = self.graph.number_of_nodes()
-        if n < 3 or not self.is_connected():
-            return True
-
-        degrees = dict(self.graph.degree)
-        if any(deg < 2 for deg in degrees.values()):
-            return True
-
-        if all(deg >= n / 2 for deg in degrees.values()):
+        # вычисляем общую сумму S = sum f_k * (k - 2)
+        total_sum = sum(f_k.get(k, 0) * (k - 2) for k in f_k)
+        if total_sum == 0 or total_sum % 2 != 0:
+            print(total_sum)
             return False
 
-        for u in self.graph.nodes:
-            for v in self.graph.nodes:
-                if u != v and not self.graph.has_edge(u, v):
-                    if degrees[u] + degrees[v] >= n:
-                        return False
+        target = total_sum // 2
 
-        if not self.is_biconnected():
-            return True
-        if self.graph.number_of_edges() > 3 * n - 6:
-            return True
-        if self.has_bridges():
-            return True
-        if self.has_separating_cycles():
-            return True
+        # преобразуем f_k в список пар (k, count) для удобства перебора
 
-        return False
+        n = len(faces)
+        found = False
 
-    def is_hamiltonian(self):
-        res = self.greenberg_condition()
-        if res == 'nonplanar':
-            return None
-        return not res
+        # перебираем все возможные размеры подмножеств (от 1 до n-1)
+        for r in range(1, n):
+            # перебираем все комбинации из r граней
+            for subset_indices in combinations(range(n), r):
+                # вычисляем сумму (k-2) для выбранных граней
+                current_sum = sum(len(faces[i]) - 2 for i in subset_indices)
+                
+                # если сумма совпала с целевой — проверяем условие
+                if current_sum == target:
+                    # получаем f'_k и f''_k
+                    f_prime = [faces[i] for i in subset_indices]
+                    f_double_prime = [faces[i] for i in range(n) if i not in subset_indices]
+
+                    # проверяем, что в обоих группах есть хотя бы одна грань каждого порядка
+                    # (если в исходном графе были грани порядка k, они должны быть в f'_k или f''_k)
+                    orders_in_f_prime = {len(face) for face in f_prime}
+                    orders_in_f_double_prime = {len(face) for face in f_double_prime}
+                    all_orders = {len(face) for face in faces}
+
+                    # если все orders покрыты хотя бы в одном из множеств — условие выполнено
+                    if all_orders.issubset(orders_in_f_prime.union(orders_in_f_double_prime)):
+                        found = True
+        if found:
+            mutable_params.append(f_prime)
+            mutable_params.append(f_double_prime)
+
+        return found
 
     def layout_planar_or_default(self):
-        """Возвращает словарь позиций вершин.
-        Если граф планарный, то использует планарный embedding.
-        Иначе — spring layout (force-directed)."""
         is_planar, embedding = nx.check_planarity(self.graph)
         if is_planar:
             # планарное расположение из embedding
