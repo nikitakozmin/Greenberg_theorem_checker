@@ -152,10 +152,7 @@ class GraphNX:
         return found
 
     def is_hamiltonian(self):
-        res = self.greenberg_condition()
-        if res == 'nonplanar':
-            return None
-        return res
+        return str(self.greenberg_condition())
 
     def layout_planar_or_default(self):
         is_planar, embedding = nx.check_planarity(self.graph)
