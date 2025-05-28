@@ -55,36 +55,8 @@ class GraphNX:
                 if not self.graph.has_edge(neighbors[0], neighbors[1]):
                     return True
         return False
-    
-    # def get_faces(self):
-    #     # находим базис циклов
-    #     cycles = nx.cycle_basis(self.graph)
-
-    #     def remove_composite_cycles(cycles):
-    #         filtered = []
-    #         for c in cycles:
-    #             c_set = set(c)
-    #             is_composite = False
-    #             for other in cycles:
-    #                 if c == other:
-    #                     continue
-    #                 if set(other).issubset(c_set) and len(other) < len(c):
-    #                     is_composite = True
-    #                     break
-    #             if not is_composite:
-    #                 filtered.append(c)
-    #         return filtered 
-        
-    #     minimal_cycles = remove_composite_cycles(cycles)
-        
-    #     all_cycles = list(nx.simple_cycles(self.graph.to_directed())) 
-    #     outer_face = max(all_cycles, key=len, default=[]) if all_cycles else []
-
-    #     return minimal_cycles + [outer_face]
-
 
     def get_faces(self):
-        """Возвращает список граней планарного графа."""
         if not self.is_planar():
             return []
 
@@ -92,12 +64,12 @@ class GraphNX:
         if not is_planar:
             return []
 
-        # Получаем координаты вершин 
+        # получаем координаты вершин 
         pos = nx.planar_layout(self.graph)
         import math
         neighbor_order = {}
         for u in embedding:
-            # Сортируем соседей по углу относительно вершины u
+            # сортируем соседей по углу относительно вершины u
             neighbors = sorted(
                 embedding[u],
                 key=lambda v: math.atan2(pos[v][1] - pos[u][1], pos[v][0] - pos[u][0])
@@ -107,7 +79,7 @@ class GraphNX:
                 for i, v in enumerate(neighbors)
             }
 
-        # Дальше обход граней
+        # обход граней
         faces = []
         visited_edges = set()
 
