@@ -1,4 +1,5 @@
 import networkx as nx
+from itertools import combinations
 
 class GraphNX:
     def __init__(self):
@@ -147,12 +148,13 @@ class GraphNX:
             print("f'_k:", f_prime)
             print("f''_k:", f_double_prime)
         else:
-            print("Подходящее разбиениене найдено")
+            print("Подходящее разбиениене не найдено")
 
         return found
 
     def is_hamiltonian(self):
-        return str(self.greenberg_condition())
+        res = self.greenberg_condition()
+        return str(res)
 
     def layout_planar_or_default(self):
         is_planar, embedding = nx.check_planarity(self.graph)
