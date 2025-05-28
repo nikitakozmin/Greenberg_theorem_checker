@@ -1,5 +1,6 @@
 import networkx as nx
 from itertools import combinations
+import math
 
 class GraphNX:
     def __init__(self):
@@ -54,7 +55,7 @@ class GraphNX:
 
         # получаем координаты вершин 
         pos = nx.planar_layout(self.graph)
-        import math
+        
         neighbor_order = {}
         for u in embedding:
             # сортируем соседей по углу относительно вершины u
