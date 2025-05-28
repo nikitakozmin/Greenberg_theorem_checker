@@ -56,32 +56,76 @@ class GraphNX:
                     return True
         return False
     
+    # def get_faces(self):
+    #     # находим базис циклов
+    #     cycles = nx.cycle_basis(self.graph)
+
+    #     def remove_composite_cycles(cycles):
+    #         filtered = []
+    #         for c in cycles:
+    #             c_set = set(c)
+    #             is_composite = False
+    #             for other in cycles:
+    #                 if c == other:
+    #                     continue
+    #                 if set(other).issubset(c_set) and len(other) < len(c):
+    #                     is_composite = True
+    #                     break
+    #             if not is_composite:
+    #                 filtered.append(c)
+    #         return filtered 
+        
+    #     minimal_cycles = remove_composite_cycles(cycles)
+        
+    #     all_cycles = list(nx.simple_cycles(self.graph.to_directed())) 
+    #     outer_face = max(all_cycles, key=len, default=[]) if all_cycles else []
+
+    #     return minimal_cycles + [outer_face]
+
+
     def get_faces(self):
-        # находим базис циклов
-        cycles = nx.cycle_basis(self.graph)
+        """Возвращает список граней планарного графа."""
+        if not self.is_planar():
+            return []
 
-        def remove_composite_cycles(cycles):
-            filtered = []
-            for c in cycles:
-                c_set = set(c)
-                is_composite = False
-                for other in cycles:
-                    if c == other:
-                        continue
-                    if set(other).issubset(c_set) and len(other) < len(c):
-                        is_composite = True
-                        break
-                if not is_composite:
-                    filtered.append(c)
-            return filtered 
-        
-        minimal_cycles = remove_composite_cycles(cycles)
-        
-        all_cycles = list(nx.simple_cycles(self.graph.to_directed())) 
-        outer_face = max(all_cycles, key=len, default=[]) if all_cycles else []
+        is_planar, embedding = nx.check_planarity(self.graph)
+        if not is_planar:
+            return []
 
-        return minimal_cycles + [outer_face]
+        # Получаем координаты вершин 
+        pos = nx.planar_layout(self.graph)
+        import math
+        neighbor_order = {}
+        for u in embedding:
+            # Сортируем соседей по углу относительно вершины u
+            neighbors = sorted(
+                embedding[u],
+                key=lambda v: math.atan2(pos[v][1] - pos[u][1], pos[v][0] - pos[u][0])
+            )
+            neighbor_order[u] = {
+                v: neighbors[(i + 1) % len(neighbors)]
+                for i, v in enumerate(neighbors)
+            }
 
+        # Дальше обход граней
+        faces = []
+        visited_edges = set()
+
+        for u in neighbor_order:
+            for v in neighbor_order[u]:
+                if (u, v) not in visited_edges:
+                    face = []
+                    current_u, current_v = u, v
+                    while True:
+                        face.append(current_u)
+                        visited_edges.add((current_u, current_v))
+                        next_v = neighbor_order[current_v][current_u]
+                        current_u, current_v = current_v, next_v
+                        if (current_u, current_v) == (u, v):
+                            break
+                    faces.append(face)
+
+        return faces
 
     def greenberg_condition(self):
         # проверка на планарность
@@ -100,7 +144,7 @@ class GraphNX:
         faces = self.get_faces()
         if not faces:
             return False
-        
+       
         # считаем f_k (количество граней порядка k)
         f_k = {}
         for face in faces:
@@ -110,7 +154,6 @@ class GraphNX:
 
         # вычисляем общую сумму S = sum f_k * (k - 2)
         total_sum = sum(f_k.get(k, 0) * (k - 2) for k in f_k)
-        print("Общая сумма S = sum f_k * (k - 2):", total_sum)
         if total_sum == 0:
             return False
 
@@ -150,12 +193,8 @@ class GraphNX:
         solution = backtrack(0, 0, {})
 
         if solution is not None:
-            f_k_prime = solution
-            f_k_double_prime = {k: f_k[k] - f_k_prime.get(k, 0) for k in f_k}
-            print(f"Условие Гринберга выполнено с f_k' = {f_k_prime}, f_k'' = {f_k_double_prime}")
             return True
         else:
-            print("Условие Гринберга не выполнено: не удалось найти подходящее разбиение")
             return False
 
     def is_hamiltonian(self):
