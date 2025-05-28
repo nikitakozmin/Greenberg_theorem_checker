@@ -57,12 +57,7 @@ class GraphNX:
         return False
 
     def get_faces(self):
-        if not self.is_planar():
-            return []
-
-        is_planar, embedding = nx.check_planarity(self.graph)
-        if not is_planar:
-            return []
+        _, embedding = nx.check_planarity(self.graph)
 
         # получаем координаты вершин 
         pos = nx.planar_layout(self.graph)
