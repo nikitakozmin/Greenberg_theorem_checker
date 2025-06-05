@@ -20,7 +20,7 @@ class GraphGUI:
         self.vertex_create_mode = False
 
         # Настройка размеров окна
-        self.master.geometry("1000x600")
+        self.master.geometry("1500x800")
         self.master.minsize(600, 500)
         
         self.setup_ui()
